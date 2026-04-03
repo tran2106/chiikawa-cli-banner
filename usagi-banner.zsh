@@ -152,72 +152,83 @@
         _usagi_art=$(<"$_usagi_afile")
     fi
 
-    # --- Render ---
-    local _usagi_term_width=${COLUMNS:-80}
-
-    # Calculate art width
-    local _usagi_art_width=0
-    if [[ -n "$_usagi_art" ]]; then
+    function usagi_render_banner() {
+        local _usagi_term_width=${COLUMNS:-80}
+        local _usagi_art_width=0
+        local -a _usagi_art_lines
         local _usagi_aline
-        while IFS= read -r _usagi_aline; do
-            (( ${#_usagi_aline} > _usagi_art_width )) && _usagi_art_width=${#_usagi_aline}
-        done <<< "$_usagi_art"
-    fi
 
-    print ""
+        # Calculate art width and store lines
+        if [[ -n "$_usagi_art" ]]; then
+            while IFS= read -r _usagi_aline; do
+                _usagi_art_lines+=("$_usagi_aline")
+                (( ${#_usagi_aline} > _usagi_art_width )) && _usagi_art_width=${#_usagi_aline}
+            done <<< "$_usagi_art"
+        fi
 
-    # Print art (only if terminal is wide enough)
-    if [[ -n "$_usagi_art" ]] && (( _usagi_art_width <= _usagi_term_width )); then
-        local _usagi_art_pad=$(( (_usagi_term_width - _usagi_art_width) / 2 ))
-        local _usagi_art_padding=""
-        (( _usagi_art_pad > 0 )) && _usagi_art_padding="${(l:_usagi_art_pad:: :)}"
-
-        local _usagi_line
-        while IFS= read -r _usagi_line; do
-            print "${_usagi_art_padding}${_usagi_color_art}${_usagi_line}${_usagi_color_reset}"
-        done <<< "$_usagi_art"
         print ""
-    fi
 
-    # Find max label width for alignment
-    local _usagi_maxlen=0
-    local _usagi_l
-    for _usagi_l in "${_usagi_info_labels[@]}"; do
-        (( ${#_usagi_l} > _usagi_maxlen )) && _usagi_maxlen=${#_usagi_l}
-    done
+        # Print art (truncate if needed, hide if too small)
+        if [[ -n "$_usagi_art" && $_usagi_term_width -ge 20 ]]; then
+            for _usagi_aline in "${_usagi_art_lines[@]}"; do
+                local _line="${_usagi_aline:0:$_usagi_term_width}"
+                local _pad=$(( (_usagi_term_width - ${#_line}) / 2 ))
+                local _padding=""
+                (( _pad > 0 )) && _padding="${(l:_pad:: :)}"
+                print "${_padding}${_usagi_color_art}${_line}${_usagi_color_reset}"
+            done
+            print ""
+        fi
 
-    # Calculate info block width for centering
-    local _usagi_info_max_width=0
-    local _usagi_i
-    for (( _usagi_i = 1; _usagi_i <= ${#_usagi_info_labels}; _usagi_i++ )); do
-        local _usagi_line_width=$(( 2 + _usagi_maxlen + ${#_usagi_separator} + ${#_usagi_info_values[$_usagi_i]} ))
-        (( _usagi_line_width > _usagi_info_max_width )) && _usagi_info_max_width=$_usagi_line_width
-    done
-
-    local _usagi_info_pad=$(( (_usagi_term_width - _usagi_info_max_width) / 2 ))
-    (( _usagi_info_pad < 0 )) && _usagi_info_pad=0
-    local _usagi_info_padding=""
-    (( _usagi_info_pad > 0 )) && _usagi_info_padding="${(l:_usagi_info_pad:: :)}"
-
-    # Print info lines
-    for (( _usagi_i = 1; _usagi_i <= ${#_usagi_info_labels}; _usagi_i++ )); do
-        local _usagi_padded="${_usagi_info_labels[$_usagi_i]}"
-        while (( ${#_usagi_padded} < _usagi_maxlen )); do
-            _usagi_padded+=" "
+        # Find max label width for alignment
+        local _usagi_maxlen=0
+        local _usagi_l
+        for _usagi_l in "${_usagi_info_labels[@]}"; do
+            (( ${#_usagi_l} > _usagi_maxlen )) && _usagi_maxlen=${#_usagi_l}
         done
-        print "${_usagi_info_padding}  ${_usagi_color_label}${_usagi_padded}${_usagi_color_separator}${_usagi_separator}${_usagi_color_value}${_usagi_info_values[$_usagi_i]}${_usagi_color_reset}"
-    done
 
-    # Print quote
-    if [[ -n "$_usagi_quote" ]]; then
-        local _usagi_quote_text="\"${_usagi_quote}\""
-        local _usagi_quote_pad=$(( (_usagi_term_width - ${#_usagi_quote_text} - 2) / 2 ))
-        (( _usagi_quote_pad < 0 )) && _usagi_quote_pad=0
-        local _usagi_quote_padding=""
-        (( _usagi_quote_pad > 0 )) && _usagi_quote_padding="${(l:_usagi_quote_pad:: :)}"
+        # Calculate info block width for centering
+        local _usagi_info_max_width=0
+        local _usagi_i
+        for (( _usagi_i = 1; _usagi_i <= ${#_usagi_info_labels}; _usagi_i++ )); do
+            local _usagi_line_width=$(( 2 + _usagi_maxlen + ${#_usagi_separator} + ${#_usagi_info_values[$_usagi_i]} ))
+            (( _usagi_line_width > _usagi_info_max_width )) && _usagi_info_max_width=$_usagi_line_width
+        done
+
+        local _usagi_info_pad=$(( (_usagi_term_width - _usagi_info_max_width) / 2 ))
+        (( _usagi_info_pad < 0 )) && _usagi_info_pad=0
+        local _usagi_info_padding=""
+        (( _usagi_info_pad > 0 )) && _usagi_info_padding="${(l:_usagi_info_pad:: :)}"
+
+        # Print info lines
+        for (( _usagi_i = 1; _usagi_i <= ${#_usagi_info_labels}; _usagi_i++ )); do
+            local _usagi_padded="${_usagi_info_labels[$_usagi_i]}"
+            while (( ${#_usagi_padded} < _usagi_maxlen )); do
+                _usagi_padded+=" "
+            done
+            print "${_usagi_info_padding}  ${_usagi_color_label}${_usagi_padded}${_usagi_color_separator}${_usagi_separator}${_usagi_color_value}${_usagi_info_values[$_usagi_i]}${_usagi_color_reset}"
+        done
+
+        # Print quote
+        if [[ -n "$_usagi_quote" ]]; then
+            local _usagi_quote_text="\"${_usagi_quote}\""
+            local _usagi_quote_pad=$(( (_usagi_term_width - ${#_usagi_quote_text} - 2) / 2 ))
+            (( _usagi_quote_pad < 0 )) && _usagi_quote_pad=0
+            local _usagi_quote_padding=""
+            (( _usagi_quote_pad > 0 )) && _usagi_quote_padding="${(l:_usagi_quote_pad:: :)}"
+            print ""
+            print "${_usagi_quote_padding}  ${_usagi_color_quote}${_usagi_quote_text}${_usagi_color_reset}"
+        fi
+
         print ""
-        print "${_usagi_quote_padding}  ${_usagi_color_quote}${_usagi_quote_text}${_usagi_color_reset}"
-    fi
+    }
 
-    print ""
+    # Trap WINCH (window size change) to re-render
+    TRAPWINCH() {
+        clear
+        usagi_render_banner
+    }
+
+    # Initial render
+    usagi_render_banner
 }
