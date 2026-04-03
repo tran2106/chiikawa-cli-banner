@@ -154,24 +154,27 @@
 
     function usagi_render_banner() {
         local _usagi_term_width=${COLUMNS:-80}
-        local _usagi_art_width=0
         local -a _usagi_art_lines
         local _usagi_aline
 
-        # Calculate art width and store lines
+        # Store art lines
         if [[ -n "$_usagi_art" ]]; then
             while IFS= read -r _usagi_aline; do
                 _usagi_art_lines+=("$_usagi_aline")
-                (( ${#_usagi_aline} > _usagi_art_width )) && _usagi_art_width=${#_usagi_aline}
             done <<< "$_usagi_art"
         fi
 
         print ""
 
-        # Print art (truncate if needed, hide if too small)
-        if [[ -n "$_usagi_art" && $_usagi_term_width -ge 20 ]]; then
+        # Print art (always center, truncate or pad as needed)
+        if [[ -n "$_usagi_art" && $_usagi_term_width -ge 5 ]]; then
             for _usagi_aline in "${_usagi_art_lines[@]}"; do
-                local _line="${_usagi_aline:0:$_usagi_term_width}"
+                local _line="$_usagi_aline"
+                # Truncate if too long
+                if (( ${#_line} > _usagi_term_width )); then
+                    _line="${_line:0:$_usagi_term_width}"
+                fi
+                # Center if possible
                 local _pad=$(( (_usagi_term_width - ${#_line}) / 2 ))
                 local _padding=""
                 (( _pad > 0 )) && _padding="${(l:_pad:: :)}"
@@ -223,9 +226,8 @@
         print ""
     }
 
-    # Trap WINCH (window size change) to re-render
+    # Trap WINCH (window size change) to re-render, but do not clear the terminal
     TRAPWINCH() {
-        clear
         usagi_render_banner
     }
 
